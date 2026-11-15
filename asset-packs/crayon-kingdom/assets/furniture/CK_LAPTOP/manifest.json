@@ -1,0 +1,61 @@
+{
+  "id": "CK_LAPTOP",
+  "name": "Crayon Laptop",
+  "category": "electronics",
+  "type": "group",
+  "groupType": "state",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": true,
+  "backgroundTiles": 1,
+  "members": [
+    {
+      "type": "group",
+      "groupType": "animation",
+      "state": "on",
+      "orientation": "front",
+      "members": [
+        {
+          "type": "asset",
+          "id": "CK_LAPTOP_FRONT_ON_1",
+          "file": "CK_LAPTOP_FRONT_ON_1.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "frame": 0
+        },
+        {
+          "type": "asset",
+          "id": "CK_LAPTOP_FRONT_ON_2",
+          "file": "CK_LAPTOP_FRONT_ON_2.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "frame": 1
+        },
+        {
+          "type": "asset",
+          "id": "CK_LAPTOP_FRONT_ON_3",
+          "file": "CK_LAPTOP_FRONT_ON_3.png",
+          "width": 16,
+          "height": 32,
+          "footprintW": 1,
+          "footprintH": 2,
+          "frame": 2
+        }
+      ]
+    },
+    {
+      "type": "asset",
+      "id": "CK_LAPTOP_FRONT_OFF",
+      "file": "CK_LAPTOP_FRONT_OFF.png",
+      "width": 16,
+      "height": 32,
+      "footprintW": 1,
+      "footprintH": 2,
+      "orientation": "front",
+      "state": "off"
+    }
+  ]
+}
