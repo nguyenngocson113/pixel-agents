@@ -1967,6 +1967,12 @@ components:
         effort:
           type: string
           description: Effort level ('low', 'medium', 'high', 'xhigh' or 'max').
+        figma:
+          type: string
+          description: |
+            A Figma link the agent is told about at launch, as its design source (read
+            only). Stored normalized: https://www.figma.com/<kind>/<key>[/<slug>][?node-id=<a>-<b>]
+            (normalizeFigmaLink in core/src/characterProfiles.ts).
 
     LaunchRole:
       description: One agent definition the provider can launch as (see CharacterLaunch.agent).

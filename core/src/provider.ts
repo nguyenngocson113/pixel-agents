@@ -198,11 +198,13 @@ export interface HookProvider {
       bypassPermissions?: boolean;
       resume?: boolean;
       /** The character's launch settings (core CharacterLaunch, already validated):
-       *  the agent definition to run as, the model and the effort. Absent = the
+       *  the agent definition to run as, the model, the effort and a Figma link. Absent = the
        *  CLI's own default; a provider without such a notion ignores them. */
       agent?: string;
       model?: string;
       effort?: string;
+      /** A Figma link (core LAUNCH_FIGMA_RE) the agent is told is its design source. */
+      figma?: string;
     },
   ): {
     command: string;

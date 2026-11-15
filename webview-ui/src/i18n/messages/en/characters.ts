@@ -334,5 +334,10 @@ export const characters = {
   roleModelInvalid: 'Letters, digits, . _ - : [ ] only',
   roleEffort: 'Effort',
   roleEffortDefaultHint: 'The CLI’s default effort',
+  roleFigma: 'Figma link',
+  roleFigmaHint:
+    'Given to the agent at launch as its design source. It only reads the file, never changes it.',
+  roleFigmaPlaceholder: 'https://www.figma.com/design/…',
+  roleFigmaInvalid: 'Paste a figma.com file or frame link',
   roleBadgeTitle: 'Launches as {summary}',
 } as const;

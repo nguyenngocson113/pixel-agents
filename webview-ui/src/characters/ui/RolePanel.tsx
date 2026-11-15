@@ -1,6 +1,6 @@
 /**
  * The wardrobe's Role tab: what an agent launched as this character runs with — an agent
- * definition (`--agent`), a model and an effort. Edits go through the cast draft like any
+ * definition (`--agent`), a model, an effort and a Figma link (its design source). Edits go through the cast draft like any
  * other (undoable, kept only on Save); all defaults = no `launch` on the profile.
  */
 
@@ -261,6 +261,24 @@ function EffortChoice({ launch }: { launch: CharacterLaunch | undefined }) {
   );
 }
 
+/** The design source an agent launched as this character is told about (read only). */
+function FigmaChoice({ launch }: { launch: CharacterLaunch | undefined }) {
+  const t = useT();
+  return (
+    <div className="chv-colors">
+      <h2>{t('characters.roleFigma')}</h2>
+      <p className="chv-note">{t('characters.roleFigmaHint')}</p>
+      <CustomField
+        field="figma"
+        value={launch?.figma}
+        placeholder={t('characters.roleFigmaPlaceholder')}
+        invalidHint={t('characters.roleFigmaInvalid')}
+        label={t('characters.roleFigma')}
+      />
+    </div>
+  );
+}
+
 /** The Role tab's body. Keyed by the character by its caller, so typed text never carries over. */
 export function RolePanel() {
   const t = useT();
@@ -272,6 +290,7 @@ export function RolePanel() {
       <AgentChoice launch={launch} />
       <ModelChoice launch={launch} />
       <EffortChoice launch={launch} />
+      <FigmaChoice launch={launch} />
     </div>
   );
 }

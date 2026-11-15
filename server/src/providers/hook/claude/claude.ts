@@ -124,6 +124,17 @@ function sessionDirOf(workspacePath: string): string {
   return projectDir;
 }
 
+/**
+ * What an agent launched with a character's Figma link is told. Plain words only: the
+ * VS Code surface types it into a shell inside double quotes (shellJoin).
+ */
+export function figmaSystemPrompt(link: string): string {
+  return (
+    `Design source for this session: the Figma file ${link} - read it with the Figma tools ` +
+    'when the task needs the design and gives no other link. Read only: never change the Figma file.'
+  );
+}
+
 function buildLaunchCommand(
   sessionId: string,
   cwd: string,
@@ -133,6 +144,7 @@ function buildLaunchCommand(
     agent?: string;
     model?: string;
     effort?: string;
+    figma?: string;
   },
 ): { command: string; args: string[]; env?: Record<string, string> } {
   // A resumed session keeps its id and appends to its old transcript.
@@ -140,12 +152,18 @@ function buildLaunchCommand(
   if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
   // The character's launch settings. Checked again here, not only where profiles
   // are read: VS Code types this command line into a shell.
-  const launch = { agent: opts?.agent, model: opts?.model, effort: opts?.effort };
-  if (launch.agent || launch.model || launch.effort) {
+  const launch = {
+    agent: opts?.agent,
+    model: opts?.model,
+    effort: opts?.effort,
+    figma: opts?.figma,
+  };
+  if (launch.agent || launch.model || launch.effort || launch.figma) {
     if (isCharacterLaunch(launch)) {
       if (launch.agent) args.push('--agent', launch.agent);
       if (launch.model) args.push('--model', launch.model);
       if (launch.effort) args.push('--effort', launch.effort);
+      if (launch.figma) args.push('--append-system-prompt', figmaSystemPrompt(launch.figma));
     } else {
       console.warn('[Pixel Agents] Launch settings refused (unsafe on a command line)');
     }

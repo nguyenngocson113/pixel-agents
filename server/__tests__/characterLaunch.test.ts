@@ -9,10 +9,15 @@ import * as os from 'os';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { isCharacterLaunch, parseCharacterProfiles } from '../../core/src/characterProfiles.js';
+import { shellJoin } from '../../adapters/vscode/shellJoin.js';
+import {
+  isCharacterLaunch,
+  normalizeFigmaLink,
+  parseCharacterProfiles,
+} from '../../core/src/characterProfiles.js';
 import type { Directory } from '../../core/src/messages.js';
 import { chosenLaunchSettings } from '../src/paletteAssigner.js';
-import { claudeProvider } from '../src/providers/hook/claude/claude.js';
+import { claudeProvider, figmaSystemPrompt } from '../src/providers/hook/claude/claude.js';
 import { listClaudeAgents, readFrontmatter } from '../src/providers/hook/claude/claudeAgents.js';
 
 let home: string;
@@ -160,5 +165,61 @@ describe('chosenLaunchSettings', () => {
     expect(chosenLaunchSettings(0, { picked: 0 })).toBeUndefined();
     expect(chosenLaunchSettings(2, { picked: 2 })).toBeUndefined();
     expect(chosenLaunchSettings(undefined, { picked: 1 })).toBeUndefined();
+  });
+});
+
+describe('a character’s Figma link', () => {
+  const link = 'https://www.figma.com/design/AbC123xyz/Pixel-Agents?node-id=12-34';
+  const build = claudeProvider.buildLaunchCommand!;
+
+  it('normalizes a pasted link to the file, its slug and one node id', () => {
+    expect(
+      normalizeFigmaLink(
+        ' https://figma.com/design/AbC123xyz/Pixel-Agents/?node-id=12%3A34&t=k9&m=dev#x ',
+      ),
+    ).toBe(link);
+    expect(normalizeFigmaLink('https://www.figma.com/file/AbC123xyz')).toBe(
+      'https://www.figma.com/file/AbC123xyz',
+    );
+  });
+
+  it('refuses what isn’t a figma.com file link', () => {
+    expect(normalizeFigmaLink('http://www.figma.com/design/AbC123xyz/x')).toBeNull();
+    expect(normalizeFigmaLink('https://evil.com/design/AbC123xyz/x')).toBeNull();
+    expect(normalizeFigmaLink('https://www.figma.com.evil.com/design/AbC123xyz')).toBeNull();
+    expect(normalizeFigmaLink('https://www.figma.com/files/recent')).toBeNull();
+    expect(normalizeFigmaLink('https://www.figma.com/design/AbC123xyz/a$(id)')).toBeNull();
+    expect(normalizeFigmaLink('not a link')).toBeNull();
+  });
+
+  it('the validator takes only the stored form', () => {
+    expect(isCharacterLaunch({ figma: link })).toBe(true);
+    expect(isCharacterLaunch({ figma: `${link}&t=x` })).toBe(false);
+    expect(isCharacterLaunch({ figma: 'https://www.figma.com/design/AbC123xyz/"x"' })).toBe(false);
+  });
+
+  it('becomes an appended system prompt naming the link, read only', () => {
+    const args = build('s', '/w', { agent: 'ux-designer', figma: link }).args;
+    expect(args.slice(0, 4)).toEqual(['--session-id', 's', '--agent', 'ux-designer']);
+    expect(args[4]).toBe('--append-system-prompt');
+    expect(args[5]).toBe(figmaSystemPrompt(link));
+    expect(args[5]).toContain(link);
+    expect(args[5]).toMatch(/never change the Figma file/);
+    expect(args).toHaveLength(6);
+  });
+
+  it('a bad link drops every launch setting, like any other bad field', () => {
+    expect(build('s', '/w', { agent: 'qc', figma: 'https://x.com/a b' }).args).toEqual([
+      '--session-id',
+      's',
+    ]);
+  });
+
+  it('types into every shell safely once quoted (VS Code)', () => {
+    const line = shellJoin(build('s', '/w', { model: 'sonnet[1m]', figma: link }).args);
+    expect(line).toBe(
+      `--session-id s --model "sonnet[1m]" --append-system-prompt "${figmaSystemPrompt(link)}"`,
+    );
+    expect(() => shellJoin(['echo', '$(id)'])).toThrow();
   });
 });

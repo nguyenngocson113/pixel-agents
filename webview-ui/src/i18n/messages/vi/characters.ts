@@ -336,5 +336,10 @@ export const characters: Strings<typeof en> = {
   roleModelInvalid: 'Chỉ dùng chữ, số, . _ - : [ ]',
   roleEffort: 'Mức nỗ lực',
   roleEffortDefaultHint: 'Mức nỗ lực mặc định của CLI',
+  roleFigma: 'Link Figma',
+  roleFigmaHint:
+    'Gửi cho agent khi launch làm nguồn design. Agent chỉ đọc file, không bao giờ sửa.',
+  roleFigmaPlaceholder: 'https://www.figma.com/design/…',
+  roleFigmaInvalid: 'Dán link file hoặc frame figma.com',
   roleBadgeTitle: 'Khởi chạy với {summary}',
 };

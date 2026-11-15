@@ -29,6 +29,7 @@ import { claudeProvider } from '../../server/src/providers/index.js';
 import { sessionMarkersUnset } from '../../server/src/terminal/terminalEnv.js';
 import { cancelPermissionTimer, cancelWaitingTimer } from '../../server/src/timerManager.js';
 import { workspaceDirectories } from './hostDirectories.js';
+import { shellJoin } from './shellJoin.js';
 
 export function getProjectDirPath(cwd?: string): string {
   // Fall back to home directory when no workspace folder is open (common on Linux/macOS
@@ -141,13 +142,13 @@ export async function launchNewTerminal(
   // Only a launch the office aimed at a Directory wears its defaults.
   const look = { picked: palette, directory: chosenDirectory };
   assignPaletteIfNeeded(agent, agents, look);
-  // The look decides the command: a character chosen with a role, a model or
-  // an effort launches with them.
+  // The look decides the command: a character chosen with a role, a model, an
+  // effort or a Figma link launches with them.
   const launch = claudeProvider.buildLaunchCommand(sessionId, cwd, {
     bypassPermissions,
     ...chosenLaunchSettings(agent.palette, look),
   });
-  terminal.sendText([launch.command, ...launch.args].join(' '));
+  terminal.sendText(shellJoin([launch.command, ...launch.args]));
   agents.set(id, agent);
   // A fresh session starts with an empty context: a full gauge from the spawn on.
   clearContextUsage(id, agents);
