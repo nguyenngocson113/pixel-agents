@@ -6,7 +6,10 @@
 import { useDeferredValue, useLayoutEffect, useRef } from 'react';
 
 import type { CharacterProfile } from '../../../../core/src/characterProfiles.js';
+import { useLocale, useT } from '../../i18n/index.js';
 import { offeredParts } from '../items.js';
+import { partName } from '../labels.js';
+import { launchSummary } from '../launch.js';
 import { setPart, setUnderwear, tabSummary } from '../profiles.js';
 import {
   ACCESSORIES,
@@ -15,12 +18,14 @@ import {
   eyeShape,
   layerOf,
   type SlotKey,
+  type TabKey,
   TABS,
   underOf,
 } from '../slots.js';
 import { ColorPanel } from './ColorPanel.js';
 import type { SpriteView } from './pixelCanvas.js';
 import { PixelEditor } from './PixelEditor.js';
+import { RolePanel } from './RolePanel.js';
 import { SpriteCanvas } from './SpriteCanvas.js';
 import { useStudio } from './studio.js';
 
@@ -78,6 +83,7 @@ function OptionGrid({ cards, face = false }: { cards: OptionCard[]; face?: boole
 /** A slot's parts: None (and Underwear for Top/Pants) first, then every offered part. */
 function SlotOptions({ slot }: { slot: SlotKey }) {
   const { renderer, profile, cast } = useStudio();
+  const t = useT();
   const under = underOf(slot);
   const worn = profile[slot];
   const cards: OptionCard[] = [];
@@ -85,7 +91,7 @@ function SlotOptions({ slot }: { slot: SlotKey }) {
     for (const on of [false, true]) {
       cards.push({
         key: on ? '_under' : '_none',
-        label: on ? 'Underwear' : 'None',
+        label: on ? t('characters.underwear') : t('characters.none'),
         none: !on,
         pressed: !worn && !!profile[under] === on,
         wear: (p) => setUnderwear(p, slot, on),
@@ -94,7 +100,7 @@ function SlotOptions({ slot }: { slot: SlotKey }) {
   } else if (slot !== 'body') {
     cards.push({
       key: '_none',
-      label: 'None',
+      label: t('characters.none'),
       none: true,
       pressed: !worn,
       wear: (p) => setPart(p, slot, null),
@@ -103,7 +109,7 @@ function SlotOptions({ slot }: { slot: SlotKey }) {
   for (const part of offeredParts(renderer, cast, slot)) {
     cards.push({
       key: part.id,
-      label: part.label,
+      label: partName(part),
       pressed: worn === part.id,
       wear: (p) => setPart(p, slot, part.id),
     });
@@ -113,11 +119,12 @@ function SlotOptions({ slot }: { slot: SlotKey }) {
 
 function EyeShapes() {
   const { profile } = useStudio();
+  const t = useT();
   const current = eyeShape(profile);
   const cards: OptionCard[] = EYE_SHAPES.map((shape) => ({
     key: shape.id,
-    label: shape.label,
-    title: shape.title,
+    label: t(shape.label),
+    title: t(shape.title),
     pressed: current === shape,
     wear: (p) => {
       p.eyeShape = shape.id;
@@ -125,7 +132,7 @@ function EyeShapes() {
   }));
   return (
     <div className="chv-colors">
-      <h2>Shape</h2>
+      <h2>{t('characters.shape')}</h2>
       <OptionGrid cards={cards} face />
     </div>
   );
@@ -134,6 +141,7 @@ function EyeShapes() {
 /** A card per accessory that puts it on or takes it off (styled ones: one card, styles in its colour panel). */
 function Accessories() {
   const { renderer, profile, edit, cast } = useStudio();
+  const t = useT();
   const cards: OptionCard[] = [];
   for (const acc of ACCESSORIES) {
     const parts = offeredParts(renderer, cast, acc.key);
@@ -144,7 +152,7 @@ function Accessories() {
       const on = acc.styles ? !!profile[acc.key] : profile[acc.key] === part.id;
       cards.push({
         key: `${acc.key}:${part.id}`,
-        label: parts.length > 1 && !acc.styles ? part.label : acc.label,
+        label: parts.length > 1 && !acc.styles ? partName(part) : t(acc.label),
         pressed: on,
         wear: (p) => setPart(p, acc.key, part.id),
         onClick: () => edit((p) => setPart(p, acc.key, on ? null : part.id)),
@@ -154,9 +162,27 @@ function Accessories() {
   return <OptionGrid cards={cards} />;
 }
 
+/** The Role tab: the character's launch settings. */
+function RoleTab() {
+  const t = useT();
+  const { phone, cast } = useStudio();
+  return (
+    <div className="chv-slot">
+      {!phone && <h2 className="chv-slot-head">{t('characters.tab_role')}</h2>}
+      <RolePanel key={cast.current} />
+    </div>
+  );
+}
+
 function SlotPanel() {
-  const { profile, tab, phone, renderer } = useStudio();
-  const def = TABS.find((t) => t.key === tab)!;
+  const { tab } = useStudio();
+  return tab === 'role' ? <RoleTab /> : <WardrobeSlot tab={tab} />;
+}
+
+function WardrobeSlot({ tab }: { tab: TabKey }) {
+  const { profile, phone, renderer } = useStudio();
+  const t = useT();
+  const def = TABS.find((d) => d.key === tab)!;
   const under = underOf(tab);
   let options: React.ReactNode = null;
   const panels: React.ReactNode[] = [];
@@ -164,26 +190,33 @@ function SlotPanel() {
     options = <Accessories />;
     for (const acc of ACCESSORIES) {
       if (profile[acc.key])
-        panels.push(<ColorPanel key={acc.key} picker={{ key: acc.key, label: acc.label }} />);
+        panels.push(<ColorPanel key={acc.key} picker={{ key: acc.key, label: t(acc.label) }} />);
     }
   } else if (tab === 'eyes') {
     panels.push(<EyeShapes key="shape" />);
-    for (const picker of def.pickers) panels.push(<ColorPanel key={picker.key} picker={picker} />);
+    for (const picker of def.pickers)
+      panels.push(
+        <ColorPanel key={picker.key} picker={{ key: picker.key, label: t(picker.label) }} />,
+      );
   } else {
     options = <SlotOptions slot={tab} />;
     if (profile[tab]) {
       for (const picker of def.pickers) {
         const art = colorArt(profile, picker.key);
         if (art && renderer.wardrobe.art.has(art.path))
-          panels.push(<ColorPanel key={picker.key} picker={picker} />);
+          panels.push(
+            <ColorPanel key={picker.key} picker={{ key: picker.key, label: t(picker.label) }} />,
+          );
       }
     } else if (under && profile[under]) {
-      panels.push(<ColorPanel key={under} picker={{ key: under, label: 'Underwear colour' }} />);
+      panels.push(
+        <ColorPanel key={under} picker={{ key: under, label: t('characters.underwearColour') }} />,
+      );
     }
     const { inner } = def;
     if (inner) {
       // the slot inside this tab (beards, under the hairstyles): None or one style, then its colour
-      const { label } = layerOf(inner);
+      const label = t(layerOf(inner).label);
       panels.push(
         <div key={inner} className="chv-colors">
           <h2>{label}</h2>
@@ -192,13 +225,16 @@ function SlotPanel() {
       );
       if (profile[inner])
         panels.push(
-          <ColorPanel key={`${inner}-colour`} picker={{ key: inner, label: `${label} colour` }} />,
+          <ColorPanel
+            key={`${inner}-colour`}
+            picker={{ key: inner, label: t('characters.colourOf', { name: label }) }}
+          />,
         );
     }
   }
   return (
     <div className="chv-slot">
-      {!phone && <h2 className="chv-slot-head">{def.label}</h2>}
+      {!phone && <h2 className="chv-slot-head">{t(def.label)}</h2>}
       {options}
       {panels.length > 0 && <div className="chv-slot-body">{panels}</div>}
     </div>
@@ -208,6 +244,9 @@ function SlotPanel() {
 /** One line of tabs (down the side on desktop), each as wide as the longest slot name. */
 function Tabs() {
   const { renderer, profile, tab, setTab, phone } = useStudio();
+  const t = useT();
+  // the names' widths change with the language: measured again on a switch
+  const { locale } = useLocale();
   const list = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = list.current;
@@ -226,7 +265,7 @@ function Tabs() {
     };
     fit();
     void document.fonts?.ready.then(fit);
-  }, []);
+  }, [locale]);
   // keep the chosen tab in view
   useLayoutEffect(() => {
     const el = list.current;
@@ -241,26 +280,36 @@ function Tabs() {
   }, [tab, phone]);
   return (
     <div className="chv-tabs" role="tablist" ref={list}>
-      {TABS.map((t) => (
+      {TABS.map((def) => (
         <button
-          key={t.key}
+          key={def.key}
           type="button"
           role="tab"
-          aria-selected={tab === t.key}
-          onClick={() => setTab(t.key)}
+          aria-selected={tab === def.key}
+          onClick={() => setTab(def.key)}
         >
-          <b>{t.label}</b>
-          <span>{tabSummary(renderer.wardrobe, profile, t.key)}</span>
+          <b>{t(def.label)}</b>
+          <span>{tabSummary(renderer.wardrobe, profile, def.key)}</span>
         </button>
       ))}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'role'}
+        onClick={() => setTab('role')}
+      >
+        <b>{t('characters.tab_role')}</b>
+        <span>{launchSummary(profile.launch) || t('characters.roleNone')}</span>
+      </button>
     </div>
   );
 }
 
 export function Wardrobe() {
   const { editor } = useStudio();
+  const t = useT();
   return (
-    <section className="chv-box chv-wardrobe" aria-label="Wardrobe">
+    <section className="chv-box chv-wardrobe" aria-label={t('characters.wardrobe')}>
       {editor ? (
         <PixelEditor />
       ) : (
