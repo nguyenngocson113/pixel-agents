@@ -1,0 +1,13 @@
+{
+  "id": "CK_CASTLE_YELLOW",
+  "name": "Castle (yellow flag)",
+  "category": "decor",
+  "type": "asset",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 3,
+  "width": 48,
+  "height": 64,
+  "footprintW": 3,
+  "footprintH": 4
+}

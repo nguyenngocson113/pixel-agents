@@ -1,0 +1,13 @@
+{
+  "id": "CK_TOWER_PURPLE",
+  "name": "Tower (purple flag)",
+  "category": "decor",
+  "type": "asset",
+  "canPlaceOnWalls": false,
+  "canPlaceOnSurfaces": false,
+  "backgroundTiles": 3,
+  "width": 32,
+  "height": 64,
+  "footprintW": 2,
+  "footprintH": 4
+}
