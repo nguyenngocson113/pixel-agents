@@ -28,6 +28,9 @@ export interface AgentState {
   turnActive?: boolean;
   permissionSent: boolean;
   hadToolsInTurn: boolean;
+  /** The working directory the office launched it in (office-launched agents
+   *  only): where a task it delegates goes looking for characters. */
+  cwd?: string;
   /** Directory name — the agent's origin label (only set for multi-root workspaces) */
   directoryName?: string;
   /** Timestamp of last JSONL data received (ms since epoch) */

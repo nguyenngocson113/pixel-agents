@@ -7,12 +7,13 @@ import Fastify from 'fastify';
 import { agentCreatedMessage } from './agentMessages.js';
 import type { AgentRuntime } from './agentRuntime.js';
 import type { AgentStateStore } from './agentStateStore.js';
+import { getCharacterProfiles } from './characterProfilesStore.js';
 import type {
   AssetCache,
   ReloadAssetsSideEffect,
   SetHooksEnabledSideEffect,
 } from './clientMessageHandler.js';
-import { handleClientMessage } from './clientMessageHandler.js';
+import { handleClientMessage, KEY_BYPASS_PERMISSIONS } from './clientMessageHandler.js';
 import {
   HOOK_API_PREFIX,
   MAX_HOOK_BODY_SIZE,
@@ -21,7 +22,11 @@ import {
   WS_CLOSE_UNAUTHORIZED,
 } from './constants.js';
 import { applyReportedContext } from './contextUsage.js';
-import { hookProviderById } from './providers/index.js';
+import { localAddressFor, setDelegationEndpoint } from './delegation/delegationMcpConfig.js';
+import { DelegationService } from './delegation/delegationService.js';
+import { registerMcpRoute } from './delegation/mcpRoute.js';
+import { claudeProvider, hookProviderById } from './providers/index.js';
+import { launchStandaloneAgent } from './terminal/standaloneAgentLauncher.js';
 import { registerTerminalRoutes } from './terminal/terminalRoutes.js';
 import type { TerminalSessions } from './terminal/terminalSessions.js';
 import type { AgentState } from './types.js';
@@ -127,12 +132,16 @@ export async function createHttpServer(options: HttpServerOptions): Promise<Http
     allowedHostnames,
     ptyManager: options.ptyManager,
   });
+  const delegation = registerDelegation(app, options);
 
   // ── Listen ──────────────────────────────────────────────────
 
   await app.listen({ host, port: options.port ?? 0 });
   const address = app.server.address();
   const port = typeof address === 'object' ? (address?.port ?? 0) : 0;
+  // Launches from now on carry the delegation tools, pointed at this server.
+  if (delegation)
+    setDelegationEndpoint({ host: localAddressFor(host), port, token: options.token });
 
   return { app, port };
 }
@@ -178,6 +187,40 @@ function registerHookRoute(app: FastifyInstance, options: HttpServerOptions): vo
       reply.send('ok');
     },
   );
+}
+
+// ── Delegation (standalone: agents hand tasks to characters) ───
+
+/** The office's MCP server, where there are terminals to type tasks into. */
+function registerDelegation(
+  app: FastifyInstance,
+  options: HttpServerOptions,
+): DelegationService | null {
+  const { ptyManager, runtime, store } = options;
+  if (options.embedded || !ptyManager || !runtime) return null;
+  const service = new DelegationService({
+    store,
+    ptyManager,
+    provider: claudeProvider,
+    profiles: getCharacterProfiles,
+    launch: ({ directoryPath, palette, prompt }) =>
+      launchStandaloneAgent(
+        { store, runtime, ptyManager, provider: claudeProvider },
+        {
+          directoryPath,
+          palette,
+          prompt,
+          // The host's persisted posture, as for every launch from the office.
+          bypassPermissions: store.getAdapter()?.getSetting(KEY_BYPASS_PERMISSIONS, false) ?? false,
+        },
+      ),
+  });
+  registerMcpRoute(app, service, bearerAuth(options.token));
+  app.addHook('onClose', async () => {
+    setDelegationEndpoint(null);
+    service.dispose();
+  });
+  return service;
 }
 
 // ── Usage reports ──────────────────────────────────────────────

@@ -238,3 +238,25 @@ export const NEW_CONVERSATION_TITLE = 'New conversation';
 /** Most agent ids a saved card order keeps. The order is pruned to live agents
  *  on every save, so this only bounds a hand-edited or hostile payload. */
 export const MAX_CARD_ORDER_LENGTH = 1_000;
+
+// ── Delegation (an agent hands a task to a character, server/src/delegation/) ──
+/** The office's MCP server, as the coding agent's config names it (tools are
+ *  `mcp__pixel-agents__<tool>`). */
+export const DELEGATION_MCP_SERVER_NAME = 'pixel-agents';
+/** The MCP endpoint; the calling agent's id follows it. */
+export const DELEGATION_MCP_PATH = '/api/mcp';
+/** Per-agent MCP config files, in the persistence dir. */
+export const DELEGATION_MCP_DIR = 'mcp';
+/** Longest a single wait_for_task call holds (a client's HTTP request gives up
+ *  at 300 s); the delegating agent calls again to keep waiting. */
+export const DELEGATION_WAIT_MAX_MS = 120_000;
+/** A wait_for_task without its own timeout holds this long. */
+export const DELEGATION_WAIT_DEFAULT_MS = 90_000;
+/** Pause between pasting a task into a terminal and pressing Enter. */
+export const DELEGATION_SUBMIT_DELAY_MS = 150;
+/** A finished task's reply is kept this long for a wait that comes late. */
+export const DELEGATION_TASK_TTL_MS = 60 * 60_000;
+/** Longest task text accepted. */
+export const DELEGATION_TASK_MAX_CHARS = 20_000;
+/** A turn that ended before its transcript caught up is read again after this. */
+export const DELEGATION_REPLY_RETRY_MS = 600;

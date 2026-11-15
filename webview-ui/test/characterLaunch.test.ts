@@ -117,3 +117,30 @@ describe('offeredRoles', () => {
     expect(roleModel(roles, undefined)).toBeUndefined();
   });
 });
+
+describe('the Figma link field', () => {
+  const link = 'https://www.figma.com/design/AbC123xyz/Pixel-Agents?node-id=12-34';
+
+  it('stores a pasted link normalized, and drops one that isn’t a Figma link', () => {
+    const p = profile();
+    expect(
+      setLaunchField(
+        p,
+        'figma',
+        'https://figma.com/design/AbC123xyz/Pixel-Agents?node-id=12-34&t=q',
+      ),
+    ).toBe(true);
+    expect(p.launch).toEqual({ figma: link });
+    expect(isCharacterLaunch(p.launch)).toBe(true);
+    expect(setLaunchField(p, 'figma', 'https://example.com/x')).toBe(false);
+    expect(p.launch).toEqual({ figma: link });
+    expect(setLaunchField(p, 'figma', null)).toBe(true);
+    expect(p.launch).toBeUndefined();
+  });
+
+  it('shows in the summary as a word, never on the badge', () => {
+    expect(launchSummary({ agent: 'ux-designer', figma: link })).toBe('ux-designer · Figma');
+    expect(launchBadge({ figma: link })).toBe('');
+    expect(isValidLaunchValue('figma', link)).toBe(true);
+  });
+});

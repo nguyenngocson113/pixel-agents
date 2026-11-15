@@ -306,6 +306,7 @@ export interface CharacterLaunch {
   agent?: string;
   model?: string;
   effort?: string;
+  figma?: string;
 }
 
 export interface AgentLook {

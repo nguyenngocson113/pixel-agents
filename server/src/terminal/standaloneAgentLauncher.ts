@@ -23,6 +23,10 @@ import { createAgentState } from '../agentState.js';
 import type { AgentStateStore } from '../agentStateStore.js';
 import { JSONL_POLL_INTERVAL_MS } from '../constants.js';
 import { clearContextUsage } from '../contextUsage.js';
+import {
+  delegationMcpServerFor,
+  removeDelegationMcpConfig,
+} from '../delegation/delegationMcpConfig.js';
 import { directoryAt } from '../directories.js';
 import { startFileWatching } from '../fileWatcher.js';
 import { directoryNameFor, hostDirectory } from '../hostDirectory.js';
@@ -52,6 +56,8 @@ export interface LaunchStandaloneAgentOptions {
    *  id, same transcript (read from its end), and the seat its agent sat in
    *  when that one is free. */
   resume?: { sessionId: string; transcript: string; seatId?: string };
+  /** The first prompt, submitted as the session starts (a delegated task). */
+  prompt?: string;
   cols?: number;
   rows?: number;
 }
@@ -111,6 +117,7 @@ export function launchStandaloneAgent(
     providerId: provider.id,
     seatId: options.resume?.seatId,
   });
+  agent.cwd = cwd;
   if (options.resume) {
     // Its history is the past: replaying it would resurrect finished tools.
     try {
@@ -125,12 +132,16 @@ export function launchStandaloneAgent(
   // restores the same character without the webview having to save it back.
   const look = { picked: options.palette, directory };
   assignPaletteIfNeeded(agent, store, look);
-  // The look decides the command: a character chosen with a role, a model or
-  // an effort launches with them.
+  // The look decides the command: a character chosen with a role, a model, an
+  // effort or a Figma link launches with them.
+  // Every office-launched agent can delegate to the office's characters.
+  const mcpServer = delegationMcpServerFor(id);
   const launch = provider.buildLaunchCommand(sessionId, cwd, {
     bypassPermissions: options.bypassPermissions,
     resume: options.resume !== undefined,
     ...chosenLaunchSettings(agent.palette, look),
+    ...(options.prompt ? { prompt: options.prompt } : {}),
+    ...(mcpServer ? { mcpServer } : {}),
   });
 
   let session;
@@ -149,6 +160,7 @@ export function launchStandaloneAgent(
   } catch (err) {
     // Roll the id back so a failed spawn doesn't burn an agent id.
     store.nextAgentId.current--;
+    removeDelegationMcpConfig(id);
     console.error(`[Pixel Agents] Terminal: spawn failed: ${String(err)}`);
     return null;
   }
@@ -271,6 +283,7 @@ function admitTerminalAgent(
   // "terminal closed -> clean up orphan" pass in fileWatcher.
   session.onExit((exit) => {
     console.log(`[Pixel Agents] Terminal: Agent ${id} - exited (code ${exit.exitCode})`);
+    removeDelegationMcpConfig(id);
     store.broadcast({ type: 'terminalSessionClosed', agentId: id, exitCode: exit.exitCode });
     if (store.has(id)) {
       runtime.unregisterAgent(agent.sessionId);

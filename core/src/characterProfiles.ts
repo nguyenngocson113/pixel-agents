@@ -104,10 +104,44 @@ export const LAUNCH_AGENT_RE = /^[A-Za-z0-9._-]{1,64}$/;
 /** A model alias or full name ('opus', 'claude-opus-5-5', 'sonnet[1m]'), likewise. */
 export const LAUNCH_MODEL_RE = /^[A-Za-z0-9._:[\]-]{1,100}$/;
 
+/**
+ * A Figma link as a profile stores it: the file kind, its key, its name slug and at most
+ * one node id — nothing a shell would read once the launch quotes it (no spaces, quotes,
+ * `$`, `%`, `!`, backslashes or backticks).
+ */
+export const LAUNCH_FIGMA_RE =
+  /^https:\/\/www\.figma\.com\/(?:design|file|proto|board|make|slides)\/[A-Za-z0-9]{6,64}(?:\/[A-Za-z0-9._-]{1,200})?(?:\?node-id=\d{1,10}-\d{1,10})?$/;
+
+/**
+ * A pasted Figma link in the form the profile stores (LAUNCH_FIGMA_RE), or null when it
+ * isn't one: https only, figma.com, the file's kind/key/slug, and only its `node-id`
+ * (`12:34` and `12%3A34` written `12-34`); every other query parameter and the hash go.
+ */
+export function normalizeFigmaLink(text: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(text.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  if (url.hostname !== 'figma.com' && url.hostname !== 'www.figma.com') return null;
+  const path = url.pathname.replace(/\/+$/, '');
+  const nodeId = url.searchParams.get('node-id')?.replace(':', '-');
+  const out = `https://www.figma.com${path}${nodeId ? `?node-id=${nodeId}` : ''}`;
+  return LAUNCH_FIGMA_RE.test(out) ? out : null;
+}
+
+const LAUNCH_FIELDS = ['agent', 'model', 'effort', 'figma'];
+
 /** A character's launch settings: each field absent or safe on a command line. */
 export function isCharacterLaunch(value: unknown): value is CharacterLaunch {
   if (!isRecord(value)) return false;
-  if (Object.keys(value).some((k) => k !== 'agent' && k !== 'model' && k !== 'effort'))
+  if (Object.keys(value).some((k) => !LAUNCH_FIELDS.includes(k))) return false;
+  if (
+    value.figma !== undefined &&
+    !(typeof value.figma === 'string' && LAUNCH_FIGMA_RE.test(value.figma))
+  )
     return false;
   if (
     value.agent !== undefined &&
@@ -126,7 +160,7 @@ export function isCharacterLaunch(value: unknown): value is CharacterLaunch {
 
 /** A launch with something in it (an empty one launches like none). */
 export function hasLaunchSettings(launch: CharacterLaunch | undefined): launch is CharacterLaunch {
-  return !!launch && (!!launch.agent || !!launch.model || !!launch.effort);
+  return !!launch && (!!launch.agent || !!launch.model || !!launch.effort || !!launch.figma);
 }
 const CHARACTER_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 

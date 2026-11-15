@@ -27,6 +27,7 @@ import {
 } from './constants.js';
 import { conversationTitle } from './conversationTitle.js';
 import { isInheritedClaudeSessionEnv } from './sessionEnv.js';
+import { claudeTurnReply } from './turnReply.js';
 
 // ── formatToolStatus: moved from src/transcriptParser.ts ──
 
@@ -124,6 +125,17 @@ function sessionDirOf(workspacePath: string): string {
   return projectDir;
 }
 
+/**
+ * What an agent launched with a character's Figma link is told. Plain words only: the
+ * VS Code surface types it into a shell inside double quotes (shellJoin).
+ */
+export function figmaSystemPrompt(link: string): string {
+  return (
+    `Design source for this session: the Figma file ${link} - read it with the Figma tools ` +
+    'when the task needs the design and gives no other link. Read only: never change the Figma file.'
+  );
+}
+
 function buildLaunchCommand(
   sessionId: string,
   cwd: string,
@@ -133,22 +145,48 @@ function buildLaunchCommand(
     agent?: string;
     model?: string;
     effort?: string;
+    figma?: string;
+    prompt?: string;
+    mcpServer?: { configPath: string; name: string };
   },
 ): { command: string; args: string[]; env?: Record<string, string> } {
   // A resumed session keeps its id and appends to its old transcript.
   const args = [opts?.resume ? '--resume' : '--session-id', sessionId];
+  // The first prompt goes right after the session flag: later flags
+  // (--mcp-config, --allowedTools) take every word after them, so a prompt at
+  // the end would be read as one more of theirs. One that starts with '-'
+  // would be read as a flag.
+  if (opts?.prompt?.trim()) {
+    const prompt = opts.prompt.trim();
+    args.push(prompt.startsWith('-') ? `Task: ${prompt}` : prompt);
+  }
   if (opts?.bypassPermissions) args.push('--dangerously-skip-permissions');
   // The character's launch settings. Checked again here, not only where profiles
   // are read: VS Code types this command line into a shell.
-  const launch = { agent: opts?.agent, model: opts?.model, effort: opts?.effort };
-  if (launch.agent || launch.model || launch.effort) {
+  const launch = {
+    agent: opts?.agent,
+    model: opts?.model,
+    effort: opts?.effort,
+    figma: opts?.figma,
+  };
+  if (launch.agent || launch.model || launch.effort || launch.figma) {
     if (isCharacterLaunch(launch)) {
       if (launch.agent) args.push('--agent', launch.agent);
       if (launch.model) args.push('--model', launch.model);
       if (launch.effort) args.push('--effort', launch.effort);
+      if (launch.figma) args.push('--append-system-prompt', figmaSystemPrompt(launch.figma));
     } else {
       console.warn('[Pixel Agents] Launch settings refused (unsafe on a command line)');
     }
+  }
+  // The office's own MCP server, its tools allowed without a prompt each call.
+  if (opts?.mcpServer) {
+    args.push(
+      '--mcp-config',
+      opts.mcpServer.configPath,
+      '--allowedTools',
+      `mcp__${opts.mcpServer.name}`,
+    );
   }
   return { command: 'claude', args, env: { PWD: cwd } };
 }
@@ -365,6 +403,7 @@ export const claudeProvider: HookProvider = {
   getAllSessionRoots,
   sessionFilePattern: '*.jsonl',
   buildLaunchCommand,
+  turnReply: claudeTurnReply,
   listLaunchRoles: listClaudeAgents,
   isInheritedSessionEnv: isInheritedClaudeSessionEnv,
   conversationTitle,

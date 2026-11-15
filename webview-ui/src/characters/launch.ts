@@ -1,6 +1,6 @@
 /**
- * A character's launch settings (`profile.launch`: the agent definition, model and effort
- * an agent launched as this character runs with), as the Characters view's Role tab edits
+ * A character's launch settings (`profile.launch`: the agent definition, model, effort and
+ * Figma link an agent launched as this character runs with), as the Characters view's Role tab edits
  * them. Pure: what a field's text means, and how a profile carries the result (never an
  * empty object: all defaults = no `launch` at all).
  */
@@ -12,6 +12,7 @@ import {
   LAUNCH_EFFORTS,
   LAUNCH_MODEL_RE,
   type LaunchEffort,
+  normalizeFigmaLink,
 } from '../../../core/src/characterProfiles.js';
 import type { LaunchRole } from '../../../core/src/messages.js';
 
@@ -28,7 +29,14 @@ export function isValidLaunchValue(field: LaunchField, value: string): boolean {
   const v = value.trim();
   if (field === 'agent') return LAUNCH_AGENT_RE.test(v);
   if (field === 'model') return LAUNCH_MODEL_RE.test(v);
+  if (field === 'figma') return normalizeFigmaLink(v) !== null;
   return isLaunchEffort(v);
+}
+
+/** A valid field value as the profile stores it (a Figma link normalized, the rest trimmed). */
+function storedLaunchValue(field: LaunchField, value: string): string {
+  const v = value.trim();
+  return field === 'figma' ? (normalizeFigmaLink(v) ?? v) : v;
 }
 
 /**
@@ -40,11 +48,11 @@ export function normalizeLaunch(
 ): CharacterLaunch | undefined {
   if (!draft) return undefined;
   const out: CharacterLaunch = {};
-  for (const field of ['agent', 'model', 'effort'] as const) {
+  for (const field of ['agent', 'model', 'effort', 'figma'] as const) {
     const v = draft[field]?.trim();
-    if (v && isValidLaunchValue(field, v)) out[field] = v;
+    if (v && isValidLaunchValue(field, v)) out[field] = storedLaunchValue(field, v);
   }
-  return out.agent || out.model || out.effort ? out : undefined;
+  return out.agent || out.model || out.effort || out.figma ? out : undefined;
 }
 
 /**
@@ -64,10 +72,12 @@ export function setLaunchField(
   return true;
 }
 
-/** "Role · model · effort", the parts that are set (empty when none is). */
+/** "Role · model · effort · Figma", the parts that are set (empty when none is). */
 export function launchSummary(launch: CharacterLaunch | undefined): string {
   if (!launch) return '';
-  return [launch.agent, launch.model, launch.effort].filter(Boolean).join(' · ');
+  return [launch.agent, launch.model, launch.effort, launch.figma && 'Figma']
+    .filter(Boolean)
+    .join(' · ');
 }
 
 /** The one word a roster card shows for a character's launch: its role, else model, else effort. */
