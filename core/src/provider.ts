@@ -205,12 +205,23 @@ export interface HookProvider {
       effort?: string;
       /** A Figma link (core LAUNCH_FIGMA_RE) the agent is told is its design source. */
       figma?: string;
+      /** The first prompt, submitted as the session starts (a delegated task).
+       *  Only ever passed as its own argv entry, never through a shell. */
+      prompt?: string;
+      /** An MCP server the session connects to and may call without asking: a
+       *  config file (the CLI's own format) and the server's name in it. The
+       *  office's delegation tools ride this (server/src/delegation/). */
+      mcpServer?: { configPath: string; name: string };
     },
   ): {
     command: string;
     args: string[];
     env?: Record<string, string>;
   };
+  /** The text of the last reply the agent wrote in its transcript after
+   *  `fromOffset` (bytes), or undefined when it wrote none: what a delegated
+   *  task returns to the agent that delegated it. */
+  turnReply?(transcript: string, fromOffset: number): string | undefined;
   /** The agent definitions a character can launch as (`buildLaunchCommand`'s
    *  `agent`): the user's own and each of `directories`' own. Undefined = this
    *  CLI has no named agents. */
